@@ -33,6 +33,24 @@ def auction(A, eps=1e-3):
 
     return assigned_items       
 
+def calc_reward(problem_solution_pair):
+    As, Ap = problem_solution_pair
+    items, = np.where(As != -1)
+    customers = As[items]
+    reward = Ap[items, customers].sum()
+
+    return reward
+
+def murtys(A, N):
+    As = auction(A)
+    L = [(As, A)]
+    R = []
+
+    i = 0
+
+    while i < N and len(L) > 0:
+
+
 
 if __name__ == "__main__":
     A = np.array([
