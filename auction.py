@@ -1,5 +1,5 @@
 import numpy as np
-
+import queue
 
 
 def unassigned_customers_exist(customers):
@@ -61,18 +61,36 @@ def valid_solution(ps_pair):
     reward = calc_reward(ps_pair)
     return np.isfinite(reward)
 
+# Thin wrapper over Python's Priority Queue
+class ProblemSolutionQueue:
+    def __init__(self) -> None:
+        self.q = queue.PriorityQueue()
+
+    def push(self, As, Ap):
+        p = (As, Ap)
+        r = calc_reward(p)
+        try:
+            self.q.put((-r, p))
+        except ValueError: # This is if we try to add the same thing multiple times
+            pass
+
+    def pop(self):
+        (_, (As, Ap)) = self.q.get()
+        return As, Ap
+
+    def empty(self):
+        return self.q.empty()
+
 
 def murtys(A, N):
     m, n = A.shape
     As = auction(A)
-    L = [(As, A)]
+    L = ProblemSolutionQueue()
+    L.push(As, A)
     R = []
 
-    l = 0
-
-    while len(L) > 0:
-        k = find_best_problem_solution_pair_idx(L)
-        Ms, Mp = L.pop(k)
+    while not L.empty():
+        Ms, Mp = L.pop()
         R.append((Ms, Mp))
 
         if len(R) == N:
@@ -97,7 +115,7 @@ def murtys(A, N):
                 org_i = item_idxs[i] # Look up what row in original problem 
                 Qp[org_i,t] = -np.inf
 
-                L.append((Qs, Qp))
+                L.push(Qs, Qp)
 
 
             locked_targets.append(item_idxs[i])
@@ -148,7 +166,7 @@ if __name__ == "__main__":
     s = compute_number_of_possible_assos(A)
     print(f"number of possible assos: {s}")
 
-    R = murtys(A, 10)
+    R = murtys(A, 11)
 
     for k, (assignments, problem) in enumerate(R):
         print(f"---------------\nassignement {k+1}")
