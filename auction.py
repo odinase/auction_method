@@ -62,6 +62,15 @@ def valid_solution(ps_pair):
     return np.isfinite(reward)
 
 
+def solution_problem_pair_exists(pair, L):
+    As, Ap = pair
+    for (Qs, Qp) in L:
+        if np.allclose(As, Qs) and np.allclose(Ap, Qp):
+            return True
+
+    return False
+
+
 def murtys(A, N):
     m, n = A.shape
     As = auction(A)
@@ -87,17 +96,21 @@ def murtys(A, N):
         for t in range(n):
             # Step (a): Solve current problem by prohibiting first tracks original association. Will always be column 0
             P[i, 0] = -np.inf
-            S = auction(P)
-            if valid_solution((S, P)):
-                # The solution Qs will in general miss the removed track associations, append them here before storing 
-                Qs = np.append(locked_targets, item_idxs[S]).astype(int)
+            if not (~np.isfinite(P[:,0])).all():
+                S = auction(P)
+                if valid_solution((S, P)):
+                    # The solution Qs will in general miss the removed track associations, append them here before storing 
+                    Qs = np.append(locked_targets, item_idxs[S]).astype(int)
 
-                # Construct copy of original problem. All previous targets that are removed from current reduced problem will have correct association value here, we only need to change current target
-                Qp = Mp.copy()
-                org_i = item_idxs[i] # Look up what row in original problem 
-                Qp[org_i,t] = -np.inf
+                    # Construct copy of original problem. All previous targets that are removed from current reduced problem will have correct association value here, we only need to change current target
+                    Qp = Mp.copy()
+                    org_i = item_idxs[i] # Look up what row in original problem 
+                    Qp[org_i,t] = -np.inf
 
-                L.append((Qs, Qp))
+                    pair = (Qs, Qp)
+
+                    if not solution_problem_pair_exists(pair, L):
+                        L.append(pair)
 
 
             locked_targets.append(item_idxs[i])
@@ -106,8 +119,9 @@ def murtys(A, N):
             P = np.delete(P[:,1:], i, axis=0) # Remove current target and its association
             if P.size == 0:
                 break # If we have no more targets to associate, we are at the bottom
-            S = auction(P) # Rerun auction on reduced problem
-            i = S[0]
+            # S = auction(P) # Rerun auction on reduced problem
+            # i = S[0]
+            i, = np.where(item_idxs==Ms[t+1])[0]
 
     return R
 
@@ -138,17 +152,11 @@ if __name__ == "__main__":
         [-np.inf, -np.inf,   -0.60]
     ])
 
-    # assignments = auction(A, eps=0.01)
-    # reward = calc_reward((assignments, A))
-    # print(f"reward = {reward}")
-
-    # for t, j in enumerate(assignments):
-    #     print(f"a({t+1}) = {j+1}")
 
     s = compute_number_of_possible_assos(A)
     print(f"number of possible assos: {s}")
 
-    R = murtys(A, 10)
+    R = murtys(A, 19)
 
     for k, (assignments, problem) in enumerate(R):
         print(f"---------------\nassignement {k+1}")
