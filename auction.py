@@ -6,7 +6,7 @@ def unassigned_customers_exist(customers):
     return (customers < 0).any() # We use -1 for unassigned
 
 
-def auction(A, eps=0.01):
+def auction(A, eps=0.001):
     m, n = A.shape
     unassigned_queue = np.arange(n)
     assigned_tracks = np.full(n, -1, dtype=int) # -1 indicates unassigned track
@@ -17,11 +17,12 @@ def auction(A, eps=0.01):
         t_star = int(unassigned_queue[0])
         unassigned_queue = unassigned_queue[1:] # Poor man's pop
 
-        # This for loop probably not needed??
-        for k, rewards in zip(range(n), A.T):
-            preffered_items[k] = int((rewards - prices).argmax())
+        # # This for loop probably not needed??
+        # for k, rewards in zip(range(n), A.T):
+        #     preffered_items[k] = int((rewards - prices).argmax())
         
-        i_star = int(preffered_items[t_star])
+        # i_star = int(preffered_items[t_star])
+        i_star = (A.T[t_star] - prices).argmax()
         prev_owner, = np.where(assigned_tracks==i_star)
         assigned_tracks[t_star] = i_star
         if prev_owner.size > 0: # The item has a previous owner
@@ -51,6 +52,7 @@ def find_best_problem_solution_pair_idx(problem_solution_set):
     for k, ps_pair in enumerate(problem_solution_set):
         curr_reward = calc_reward(ps_pair)
         if curr_reward > best_reward:
+            best_reward = curr_reward
             idx = k
 
     return idx
@@ -59,16 +61,6 @@ def valid_solution(ps_pair):
     reward = calc_reward(ps_pair)
     return np.isfinite(reward)
 
-def partition_problem(P, L):
-    if P.shape[1] == 1:
-        return P
-        Qp = Mp.copy() # Do we need copy here?
-        t = 0
-        i = Ms[t]
-        Qp[i, t] = -np.inf
-        Qs = auction(Qp)
-        if valid_solution((Qs, Qp)):
-            L.append((Qs, Qp))
 
 def murtys(A, N):
     m, n = A.shape
@@ -98,7 +90,7 @@ def murtys(A, N):
             S = auction(P)
             if valid_solution((S, P)):
                 # The solution Qs will in general miss the removed track associations, append them here before storing 
-                Qs = np.append(locked_targets, S).astype(int)
+                Qs = np.append(locked_targets, item_idxs[S]).astype(int)
 
                 # Construct copy of original problem. All previous targets that are removed from current reduced problem will have correct association value here, we only need to change current target
                 Qp = Mp.copy()
@@ -108,8 +100,8 @@ def murtys(A, N):
                 L.append((Qs, Qp))
 
 
+            locked_targets.append(item_idxs[i])
             item_idxs = np.delete(item_idxs, i)
-            locked_targets.append(i)
 
             P = np.delete(P[:,1:], i, axis=0) # Remove current target and its association
             if P.size == 0:
@@ -120,6 +112,19 @@ def murtys(A, N):
     return R
 
 
+def compute_number_of_possible_assos(A):
+    if A.shape[1] == 1:
+        return np.isfinite(A).sum()
+    
+    s = 0
+    A0 = A[:,0]
+    valid_choices = np.isfinite(A0)
+    idxs, = np.where(valid_choices)
+    for i in idxs:
+        Asub = np.delete(A[:,1:], i, axis=0)
+        s += compute_number_of_possible_assos(Asub)
+
+    return s
 
 
 if __name__ == "__main__":
@@ -140,10 +145,13 @@ if __name__ == "__main__":
     # for t, j in enumerate(assignments):
     #     print(f"a({t+1}) = {j+1}")
 
-    R = murtys(A, 3)
+    s = compute_number_of_possible_assos(A)
+    print(f"number of possible assos: {s}")
+
+    R = murtys(A, 10)
 
     for k, (assignments, problem) in enumerate(R):
-        print(f"---------------\nassignement {k}")
+        print(f"---------------\nassignement {k+1}")
         reward = calc_reward((assignments, problem))
         print(f"reward: {reward}")
         for t, j in enumerate(assignments):
