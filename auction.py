@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 
@@ -65,7 +66,7 @@ def valid_solution(ps_pair):
 def solution_problem_pair_exists(pair, L):
     As, Ap = pair
     for (Qs, Qp) in L:
-        if np.allclose(As, Qs) and np.allclose(Ap, Qp):
+        if np.allclose(As, Qs):
             return True
 
     return False
@@ -156,11 +157,23 @@ if __name__ == "__main__":
     s = compute_number_of_possible_assos(A)
     print(f"number of possible assos: {s}")
 
-    R = murtys(A, 19)
+    N = 19
+
+    R = murtys(A, N)
+
+    rewards = np.empty(N)
 
     for k, (assignments, problem) in enumerate(R):
         print(f"---------------\nassignement {k+1}")
         reward = calc_reward((assignments, problem))
+        rewards[k] = reward
         print(f"reward: {reward}")
         for t, j in enumerate(assignments):
             print(f"a({t+1}) = {j+1}")
+
+    plt.plot(np.arange(N)+1, rewards, 'o-')
+    plt.xticks(np.arange(N)+1)
+    plt.ylabel('Reward')
+    plt.xlabel('"Optimality" of solution')
+    plt.title(f"{N} possible hypothesises in total")
+    plt.show()
