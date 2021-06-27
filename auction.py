@@ -65,7 +65,7 @@ def valid_solution(ps_pair):
 def solution_problem_pair_exists(pair, L):
     As, Ap = pair
     for (Qs, Qp) in L:
-        if np.allclose(As, Qs) and np.allclose(Ap, Qp):
+        if np.allclose(As, Qs):
             return True
 
     return False
@@ -156,7 +156,7 @@ if __name__ == "__main__":
     s = compute_number_of_possible_assos(A)
     print(f"number of possible assos: {s}")
 
-    R = murtys(A, 19)
+    R = murtys(A, 50)
 
     for k, (assignments, problem) in enumerate(R):
         print(f"---------------\nassignement {k+1}")
