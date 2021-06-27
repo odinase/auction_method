@@ -171,6 +171,8 @@ if __name__ == "__main__":
         for t, j in enumerate(assignments):
             print(f"a({t+1}) = {j+1}")
 
+    assert (np.abs(np.diff(rewards)) > 1e-6).all(), "some rewards are very similar"
+
     plt.plot(np.arange(N)+1, rewards, 'o-')
     plt.xticks(np.arange(N)+1)
     plt.ylabel('Reward')
