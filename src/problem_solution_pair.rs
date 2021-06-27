@@ -120,6 +120,7 @@ mod test {
         let solution1 = Solution(auction(&A1, EPS));
         let problem1 = Problem(A1);
         let pair1 = ProblemSolutionPair::new(solution1, problem1).unwrap();
+        let pair1_ref = pair1.clone();
 
         let A2 = array![
             [-5.69, -inf, -inf],
@@ -134,6 +135,8 @@ mod test {
         let solution2 = Solution(auction(&A2, EPS));
         let problem2 = Problem(A2);
         let pair2 = ProblemSolutionPair::new(solution2, problem2).unwrap();
+        let pair2_ref = pair2.clone();
+
 
         let A3 = array![
             [-5.69, 5.37, -inf],
@@ -148,15 +151,16 @@ mod test {
         let solution3 = Solution(auction(&A3, EPS));
         let problem3 = Problem(A3);
         let pair3 = ProblemSolutionPair::new(solution3, problem3).unwrap();
+        let pair3_ref = pair3.clone();
 
         let mut b = BinaryHeap::new();
         b.push(pair3);
         b.push(pair1);    
         b.push(pair2);
 
-        while let Some(l) = b.pop() {
-            println!("{:?}", l);
-        }
+        assert_eq!(b.pop().unwrap(), pair1_ref);
+        assert_eq!(b.pop().unwrap(), pair2_ref);
+        assert_eq!(b.pop().unwrap(), pair3_ref);
      }
     
 }
