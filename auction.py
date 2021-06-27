@@ -166,7 +166,7 @@ if __name__ == "__main__":
     s = compute_number_of_possible_assos(A)
     print(f"number of possible assos: {s}")
 
-    N = 1
+    N = 3
 
     R = murtys(A, N)
 

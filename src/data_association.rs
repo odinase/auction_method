@@ -1,65 +1,57 @@
 use ndarray::prelude::*;
-use ordered_float::OrderedFloat;
-use std::collections::VecDeque;
+use std::collections::{VecDeque, BinaryHeap};
+use crate::argmax::argmax_iter;
+use crate::problem_solution_pair::ProblemSolutionPair;
 
-pub struct Solution<T>(pub Vec<T>);
-pub struct Problem<T>(pub Array2<T>);
 
-fn argmax_iter<T, I>(i: I) -> (usize, T)
-where
-    T: PartialOrd + Copy,
-    I: Iterator<Item = T>,
-{
-    let mut i = i.peekable();
-    let f = *i.peek().unwrap();
-    i.enumerate()
-        .fold((0, f), |(idx_max, val_max), (idx, val)| {
-            if val_max < val {
-                (idx, val)
-            } else {
-                (idx_max, val_max)
-            }
-        })
+// Lets use this at some point :)
+#[derive(Copy, Clone, Debug)]
+pub enum Assignment {
+    Assigned(usize),
+    Unassigned,
 }
 
-fn argmax<T: PartialOrd + Copy>(v: &[T]) -> (usize, T) {
-    v.iter()
-        .enumerate()
-        .fold((0, v[0]), |(idx_max, val_max), (idx, val)| {
-            if &val_max < val {
-                (idx, *val)
-            } else {
-                (idx_max, val_max)
-            }
-        })
-}
-
-pub fn auction(A: &Array2<f64>, eps: f64) -> Solution<i32> {
+pub fn auction(A: &Array2<f64>, eps: f64) -> Vec<Assignment> {
+    use Assignment::{Assigned, Unassigned};
+    
     let (m, n) = A.dim();
     let mut unassigned_queue: VecDeque<_> = (0..n).collect();
-    let mut assigned_tracks: Vec<i32> = vec![-1; n];
+    let mut assigned_tracks: Vec<Assignment> = vec![Unassigned; n];
     let mut prices = vec![0f64; m];
-
+    
     while let Some(t_star) = unassigned_queue.pop_front() {
         let (i_star, val_max) = argmax_iter(
             A.column(t_star)
-                .into_iter()
-                .zip(prices.iter())
-                .map(|(a, &p)| a - p as f64),
+            .into_iter()
+            .zip(prices.iter())
+            .map(|(reward, &price)| reward - price as f64),
         );
-        let prev_owner = assigned_tracks.iter().position(|&e| e as usize == i_star);
-        assigned_tracks[t_star] = i_star as i32;
-        // The item has a previous owner
+        let prev_owner = assigned_tracks.iter().position(|&e| 
+            match e {
+                Assigned(e) => e == i_star,
+                Unassigned => false,
+            }
+        );
+        assigned_tracks[t_star] = Assigned(i_star);
+        
         if let Some(prev_owner) = prev_owner {
-            assigned_tracks[prev_owner] = -1;
+            // The item has a previous owner
+            assigned_tracks[prev_owner] = Unassigned;
             unassigned_queue.push_back(prev_owner);
         }
-
+        
         let y = A[(i_star, t_star)] - val_max;
         prices[i_star] += y + eps;
     }
+    
+    assigned_tracks
+}
 
-    Solution(assigned_tracks)
+pub fn murtys(A: &Array2<f64>, N: usize) -> ProblemSolutionPair {
+    let (m, n) = A.dim();
+    let As = auction(&A, 1e-3);
+
+    todo!()
 }
 
 #[cfg(test)]
@@ -80,11 +72,14 @@ mod test {
             [-inf, -inf, -0.60]
         ];
         let start = Instant::now();
-        let Solution(assigned_tracks) = auction(&A, 1e-3);
+        let assigned_tracks = auction(&A, 1e-3);
         let stop = start.elapsed().as_secs_f64()*1e6;
         println!("ran in {:.2} us", stop);
         for (t, j) in assigned_tracks.iter().enumerate() {
-            println!("a({}) = {}", t+1, j+1)
+            match j {
+                Assignment::Assigned(j) => println!("a({}) = {}", t+1, j+1),
+                Assignment::Unassigned => println!("a({}) = unassigned", t+1),
+            }
         }
     }
 }
