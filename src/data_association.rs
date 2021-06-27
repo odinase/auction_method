@@ -5,7 +5,7 @@ use std::collections::VecDeque;
 pub struct Solution<T>(pub Vec<T>);
 pub struct Problem<T>(pub Array2<T>);
 
-fn argmax<T, I>(i: I) -> (usize, T)
+fn argmax_iter<T, I>(i: I) -> (usize, T)
 where
     T: PartialOrd + Copy,
     I: Iterator<Item = T>,
@@ -22,16 +22,26 @@ where
         })
 }
 
+fn argmax<T: PartialOrd + Copy>(v: &[T]) -> (usize, T) {
+    v.iter()
+        .enumerate()
+        .fold((0, v[0]), |(idx_max, val_max), (idx, val)| {
+            if &val_max < val {
+                (idx, *val)
+            } else {
+                (idx_max, val_max)
+            }
+        })
+}
+
 pub fn auction(A: &Array2<f64>, eps: f64) -> Solution<i32> {
     let (m, n) = A.dim();
     let mut unassigned_queue: VecDeque<_> = (0..n).collect();
     let mut assigned_tracks: Vec<i32> = vec![-1; n];
-
     let mut prices = vec![0f64; m];
-    // let mut values = vec![0; m - 1];
 
     while let Some(t_star) = unassigned_queue.pop_front() {
-        let (i_star, _) = argmax(
+        let (i_star, val_max) = argmax_iter(
             A.column(t_star)
                 .into_iter()
                 .zip(prices.iter())
@@ -45,15 +55,6 @@ pub fn auction(A: &Array2<f64>, eps: f64) -> Solution<i32> {
             unassigned_queue.push_back(prev_owner);
         }
 
-        // Quick hack, should be done better
-        let mut values: Vec<_> = A
-            .column(t_star)
-            .into_iter()
-            .zip(prices.iter())
-            .map(|(a, &p)| OrderedFloat(a - p as f64))
-            .collect();
-        values.remove(i_star);
-        let val_max = values.iter().max().expect("For some reason values is empty???").into_inner();
         let y = A[(i_star, t_star)] - val_max;
         prices[i_star] += y + eps;
     }
