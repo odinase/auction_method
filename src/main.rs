@@ -1,5 +1,27 @@
+use ndarray::prelude::*;
+
 pub mod data_association;
 
+use data_association::{auction, Solution};
+use std::time::Instant;
+
+
 fn main() {
-    println!("Hello, world!");
+    use std::f64::INFINITY as inf;
+    let A = array![
+        [-5.69, 5.37, -inf],
+        [-inf, -3.8, 6.58],
+        [4.78, -inf, -inf],
+        [-inf, 5.36, -inf],
+        [-0.46, -inf, -inf],
+        [-inf, -0.52, -inf],
+        [-inf, -inf, -0.60]
+    ];
+    let start = Instant::now();
+    let Solution(assigned_tracks) = auction(&A, 1e-3);
+    let stop = start.elapsed().as_secs_f64()*1e6;
+    println!("ran in {:.2} us", stop);
+    for (t, j) in assigned_tracks.iter().enumerate() {
+        println!("a({}) = {}", t+1, j+1)
+    }
 }

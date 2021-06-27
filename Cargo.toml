@@ -7,3 +7,4 @@ edition = "2018"
 
 [dependencies]
 ndarray = { version = "0.15" }
+ordered-float = "2.5.1"

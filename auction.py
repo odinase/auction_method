@@ -12,7 +12,6 @@ def auction(A, eps=0.001):
     unassigned_queue = np.arange(n)
     assigned_tracks = np.full(n, -1, dtype=int) # -1 indicates unassigned track
     prices = np.zeros(m)
-    preffered_items = np.empty(n, dtype=int)
 
     while unassigned_queue.size > 0:
         t_star = int(unassigned_queue[0])
@@ -153,11 +152,21 @@ if __name__ == "__main__":
         [-np.inf, -np.inf,   -0.60]
     ])
 
+    import time
+    start = time.time()
+    assignments = auction(A)
+    stop = time.time()
+    t_us = (stop-start)*1e6
+    print(f"ran in {t_us:.2f} us")
+
+    for t, j in enumerate(assignments):
+        print(f"a({t+1}) = {j+1}")
+
 
     s = compute_number_of_possible_assos(A)
     print(f"number of possible assos: {s}")
 
-    N = 19
+    N = 1
 
     R = murtys(A, N)
 
@@ -177,5 +186,5 @@ if __name__ == "__main__":
     plt.xticks(np.arange(N)+1)
     plt.ylabel('Reward')
     plt.xlabel('"Optimality" of solution')
-    plt.title(f"{N} possible hypothesises in total")
+    plt.title(f"{s} possible hypothesises in total")
     plt.show()
