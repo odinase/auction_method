@@ -1,11 +1,62 @@
+use crate::data_association::Assignment;
 use ndarray::prelude::*;
 use ordered_float::OrderedFloat;
 use std::cmp::Ordering;
-use crate::data_association::Assignment;
-
 
 #[derive(Debug, Clone)]
-pub struct Solution(pub Vec<Assignment>);
+pub struct Solution(Vec<usize>);
+
+impl Solution {
+    pub fn from_unvalidated_assignments(unvalidated_assignments: Vec<Assignment>) -> Result<Self, InvalidSolutionError> {
+        let valid_assignments = unvalidated_assignments
+            .iter()
+            .map(|&e| match e {
+                Assignment::Assigned(i) => Ok(i),
+                Assignment::Unassigned => Err(InvalidSolutionError::UnassignedTarget),
+            })
+            .collect::<Result<Vec<usize>, InvalidSolutionError>>()?;
+        Ok(Solution(valid_assignments))
+    }
+
+    pub fn from_assignments(assignments: Vec<usize>) -> Self {
+        Solution(assignments)
+    }
+
+    pub fn concatenate_assignments(assignment_set: &[Vec<usize>]) -> Self {
+        let assignments = assignment_set.iter().flatten().copied().collect();
+        Solution(assignments)
+    }
+
+    pub fn into_assignments(self) -> Vec<usize> {
+        self.0
+    }
+
+    pub fn assigned_measurement(&self, target: usize) -> Option<usize> {
+        if target < self.0.len() {
+            Some(self.0[target])
+        } else {
+            None
+        }
+    }
+
+    pub fn assigned_target(&self, measurement: usize) -> Option<usize> {
+        self.0.iter().position(|&m| m == measurement)
+    }
+
+    pub fn iter(&self) -> std::slice::Iter<'_, usize> {
+        self.0.iter()
+    }
+}
+
+impl IntoIterator for Solution {
+    type Item = usize;
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
 
 #[derive(Debug, Clone)]
 pub struct Problem(pub Array2<f64>);
@@ -27,11 +78,12 @@ impl std::fmt::Display for InvalidSolutionError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Self::InvalidReward(r) => write!(f, "Solution is invalid - calculated reward is {}", r),
-            Self::UnassignedTarget => write!(f, "Solution is invalid - There are unassigned targets")
+            Self::UnassignedTarget => {
+                write!(f, "Solution is invalid - There are unassigned targets")
+            }
         }
     }
 }
-
 
 impl Ord for ProblemSolutionPair {
     fn cmp(&self, other: &Self) -> Ordering {
@@ -58,13 +110,11 @@ impl std::error::Error for InvalidSolutionError {}
 impl ProblemSolutionPair {
     pub fn new(solution: Solution, problem: Problem) -> Result<Self, InvalidSolutionError> {
         let reward = Self::calc_reward(&solution, &problem)?;
-        Ok(
-            ProblemSolutionPair{
-                solution,
-                problem,
-                reward: OrderedFloat(reward)
-            }
-        )
+        Ok(ProblemSolutionPair {
+            solution,
+            problem,
+            reward: OrderedFloat(reward),
+        })
     }
 
     pub fn solution(&self) -> &Solution {
@@ -91,10 +141,9 @@ impl ProblemSolutionPair {
             };
             reward += A[(j, t)];
         }
-        return Ok(reward)
+        return Ok(reward);
     }
 }
-
 
 #[cfg(test)]
 mod test {
@@ -105,7 +154,7 @@ mod test {
     #[test]
     fn test_binary_heap_problem_solution_pair() {
         use std::f64::INFINITY as inf;
-        const EPS: f64 = 1e-3; 
+        const EPS: f64 = 1e-3;
 
         let A1 = array![
             [-5.69, 5.37, -inf],
@@ -131,12 +180,10 @@ mod test {
             [-inf, -0.52, -inf],
             [-inf, -inf, -0.60]
         ];
-        
         let solution2 = Solution(auction(&A2, EPS));
         let problem2 = Problem(A2);
         let pair2 = ProblemSolutionPair::new(solution2, problem2).unwrap();
         let pair2_ref = pair2.clone();
-
 
         let A3 = array![
             [-5.69, 5.37, -inf],
@@ -155,12 +202,11 @@ mod test {
 
         let mut b = BinaryHeap::new();
         b.push(pair3);
-        b.push(pair1);    
+        b.push(pair1);
         b.push(pair2);
 
         assert_eq!(b.pop().unwrap(), pair1_ref);
         assert_eq!(b.pop().unwrap(), pair2_ref);
         assert_eq!(b.pop().unwrap(), pair3_ref);
-     }
-    
+    }
 }

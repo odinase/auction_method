@@ -2,6 +2,7 @@
 use ndarray::prelude::*;
 
 use auction_method::data_association::{auction, Assignment};
+use auction_method::problem_solution_pair::Solution;
 use std::time::Instant;
 
 

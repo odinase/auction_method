@@ -1,7 +1,9 @@
 use ndarray::prelude::*;
 use std::collections::{VecDeque, BinaryHeap};
 use crate::argmax::argmax_iter;
-use crate::problem_solution_pair::ProblemSolutionPair;
+use crate::problem_solution_pair::{ProblemSolutionPair, Solution, Problem};
+
+use std::f64::NEG_INFINITY as neg_inf;
 
 
 // Lets use this at some point :)
@@ -47,11 +49,36 @@ pub fn auction(A: &Array2<f64>, eps: f64) -> Vec<Assignment> {
     assigned_tracks
 }
 
-pub fn murtys(A: &Array2<f64>, N: usize) -> ProblemSolutionPair {
+pub fn murtys(A: Array2<f64>, N: usize) -> Vec<ProblemSolutionPair> {
     let (m, n) = A.dim();
     let As = auction(&A, 1e-3);
+    let problem_solution_pair = ProblemSolutionPair::new(Solution(As), Problem(A)).unwrap(); // TODO: Fix this later
+    let mut L = BinaryHeap::new();
+    L.push(problem_solution_pair);
 
-    todo!()
+    let mut R = Vec::new();
+
+    while let Some(mut problem_solution_pair) = L.pop() {
+        // TODO: Be smarter here
+        R.push(problem_solution_pair.clone());
+
+        if R.len() == N {
+            break;
+        }
+
+        let mut P = problem_solution_pair.problem();
+        let mut i = problem_solution_pair.solution().0[0];
+        
+        let mut locked_targets = Vec::new();
+        let mut item_idxs = (0..P.0.shape()[0]).collect();
+
+        for t in 0..n {
+
+            P.0[(i, 0)] = neg_inf;
+        }
+    }
+
+    R
 }
 
 #[cfg(test)]

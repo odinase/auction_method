@@ -77,8 +77,6 @@ def murtys(A, N):
     L = [(As, A)]
     R = []
 
-    l = 0
-
     while len(L) > 0:
         k = find_best_problem_solution_pair_idx(L)
         Ms, Mp = L.pop(k)
