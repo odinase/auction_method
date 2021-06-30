@@ -1,39 +1,51 @@
 use ndarray::prelude::*;
 use std::collections::{VecDeque, BinaryHeap};
 use crate::argmax::argmax_iter;
-use crate::problem_solution_pair::{ProblemSolutionPair, Solution, Problem};
+use crate::problem_solution_pair::{ProblemSolutionPair, Solution, Problem, InvalidSolutionError};
 
 use std::f64::NEG_INFINITY as neg_inf;
 
-
-// Lets use this at some point :)
+pub mod auction_params {
+    pub const EPS: f64 = 1e-3;
+    pub const MAX_ITERATIONS: usize = 10_000; 
+}
+    
 #[derive(Copy, Clone, Debug)]
 pub enum Assignment {
     Assigned(usize),
     Unassigned,
 }
 
-pub fn auction(A: &Array2<f64>, eps: f64) -> Vec<Assignment> {
+impl std::cmp::PartialEq<usize> for Assignment  {
+    fn eq(&self, other: &usize) -> bool {
+        match self {
+            Self::Assigned(e) => e == other,
+            Self::Unassigned => false,
+        }
+    }
+}
+
+pub fn auction(problem: &Problem, eps: f64, max_iterations: usize) -> Result<Solution, InvalidSolutionError> {
     use Assignment::{Assigned, Unassigned};
     
-    let (m, n) = A.dim();
+    let (m, n) = problem.num_measurements_targets();
     let mut unassigned_queue: VecDeque<_> = (0..n).collect();
     let mut assigned_tracks: Vec<Assignment> = vec![Unassigned; n];
     let mut prices = vec![0f64; m];
+
+    let mut curr_iter = 0;
     
     while let Some(t_star) = unassigned_queue.pop_front() {
+        if curr_iter > max_iterations {
+            break;
+        }
         let (i_star, val_max) = argmax_iter(
-            A.column(t_star)
+            problem.rewards(t_star)
             .into_iter()
             .zip(prices.iter())
-            .map(|(reward, &price)| reward - price as f64),
+            .map(|(reward, &price)| reward - price),
         );
-        let prev_owner = assigned_tracks.iter().position(|&e| 
-            match e {
-                Assigned(e) => e == i_star,
-                Unassigned => false,
-            }
-        );
+        let prev_owner = assigned_tracks.iter().position(|&e| e == i_star);
         assigned_tracks[t_star] = Assigned(i_star);
         
         if let Some(prev_owner) = prev_owner {
@@ -42,23 +54,24 @@ pub fn auction(A: &Array2<f64>, eps: f64) -> Vec<Assignment> {
             unassigned_queue.push_back(prev_owner);
         }
         
-        let y = A[(i_star, t_star)] - val_max;
+        let y = problem.reward(i_star, t_star) - val_max;
         prices[i_star] += y + eps;
+        curr_iter += 1;
     }
-    
-    assigned_tracks
+    // We return a Result<Solution> here as we might have terminated early and not assigned all items
+    Solution::try_from_unvalidated_assignments(assigned_tracks)
 }
 
-pub fn murtys(A: Array2<f64>, N: usize) -> Vec<ProblemSolutionPair> {
-    let (m, n) = A.dim();
-    let As = auction(&A, 1e-3);
-    let problem_solution_pair = ProblemSolutionPair::new(Solution(As), Problem(A)).unwrap(); // TODO: Fix this later
+pub fn murtys(original_problem: Problem, N: usize) -> Result<Vec<ProblemSolutionPair>, InvalidSolutionError> {
+    let (m, n) = original_problem.num_measurements_targets();
+    let original_solution = auction(&original_problem, auction_params::EPS, auction_params::MAX_ITERATIONS)?;
+    let problem_solution_pair = ProblemSolutionPair::new(original_solution, original_problem.clone())?; // TODO: Fix this later
     let mut L = BinaryHeap::new();
     L.push(problem_solution_pair);
 
     let mut R = Vec::new();
 
-    while let Some(mut problem_solution_pair) = L.pop() {
+    while let Some(problem_solution_pair) = L.pop() {
         // TODO: Be smarter here
         R.push(problem_solution_pair.clone());
 
@@ -66,20 +79,70 @@ pub fn murtys(A: Array2<f64>, N: usize) -> Vec<ProblemSolutionPair> {
             break;
         }
 
-        let mut P = problem_solution_pair.problem();
-        let mut i = problem_solution_pair.solution().0[0];
+        let P = problem_solution_pair.problem();
+        let mut i = problem_solution_pair.solution().first();
         
-        let mut locked_targets = Vec::new();
-        let mut item_idxs = (0..P.0.shape()[0]).collect();
+        let mut locked_targets: Vec<usize> = Vec::new();
+        let mut item_idxs: Vec<_> = (0..P.num_measurements()).collect();
 
         for t in 0..n {
+            // println!("make ")
+            P.make_association_impossible(i, 0);
+            println!("Solving problem: {:?}", P);
+            if let Ok(solution) = auction(&P, auction_params::EPS, auction_params::MAX_ITERATIONS) {
+                let v = solution.into_vec();
+                println!("Solution: {:?}", v);
+                let convert_v = get_indexed_vec(item_idxs.as_slice(), v.as_slice());
+                println!("\n\nconverted : {:?}\n\n", convert_v);
+                let Qs = Solution::concatenate_assignments(&[
+                &locked_targets,
+                &convert_v
+                ]);
 
-            P.0[(i, 0)] = neg_inf;
+                let Qp = original_problem.clone();
+
+                let org_i = item_idxs[i];
+                Qp.make_association_impossible(org_i, t);
+
+                if let Ok(pair) = ProblemSolutionPair::new(Qs, Qp) {
+                    // Here we should make sure it does not exist already?
+                    println!("adding pair:\n{:?}", pair);
+                    L.push(pair);
+                }
+            } else {
+                println!("invalid solution!");
+            }
+            locked_targets.push(item_idxs[i]);
+            println!("\n\nlocked_items: {:?}\n\n", locked_targets);
+            item_idxs.remove(i);
+            println!("\n\nitem_idxs: {:?}\n\n", item_idxs);
+            if P.num_targets() > 1{
+                println!("About to delete measurement {}, P is {:?}", i, P);
+                P.delete_assignment(i);
+                println!("P is now {:?}", P);
+            } else {
+                break;
+            }
+            // if P.is_empty() {
+            //     break;
+            // }
+            
+            i = item_idxs.iter().position(|&i| i == problem_solution_pair.solution().assigned_measurement(t+1).unwrap()).expect("Cant find index??");
         }
     }
 
-    R
+    Ok(R)
 }
+
+
+fn get_indexed_vec<T: Copy>(v: &[T], idx: &[usize]) -> Vec<T> {
+    let mut index_vec = Vec::with_capacity(idx.len());
+    for &i in idx {
+        index_vec.push(v[i]);
+    }
+    index_vec
+}
+
 
 #[cfg(test)]
 mod test {
@@ -98,15 +161,18 @@ mod test {
             [-inf, -0.52, -inf],
             [-inf, -inf, -0.60]
         ];
+        let problem = Problem::new(A);
         let start = Instant::now();
-        let assigned_tracks = auction(&A, 1e-3);
+        let assigned_tracks = auction(&problem, auction_params::EPS, auction_params::MAX_ITERATIONS);
         let stop = start.elapsed().as_secs_f64()*1e6;
         println!("ran in {:.2} us", stop);
-        for (t, j) in assigned_tracks.iter().enumerate() {
-            match j {
-                Assignment::Assigned(j) => println!("a({}) = {}", t+1, j+1),
-                Assignment::Unassigned => println!("a({}) = unassigned", t+1),
-            }
-        }
+        match assigned_tracks {
+            Ok(assigned_tracks) => {
+                for (t, j) in assigned_tracks.assignments() {
+                    println!("a({}) = {}", t+1, j+1);
+                }
+            },
+            Err(e) => println!("Auction ended with error {}", e),
+        };
     }
 }

@@ -1,8 +1,8 @@
 #![allow(non_snake_case)]
 use ndarray::prelude::*;
 
-use auction_method::data_association::{auction, Assignment};
-use auction_method::problem_solution_pair::Solution;
+use auction_method::data_association::{auction_params, murtys, auction, Assignment};
+use auction_method::problem_solution_pair::{Solution, Problem};
 use std::time::Instant;
 
 
@@ -17,14 +17,21 @@ fn main() {
         [-inf, -0.52, -inf],
         [-inf, -inf, -0.60]
     ];
-    let start = Instant::now();
-    let assigned_tracks = auction(&A, 1e-3);
-    let stop = start.elapsed().as_secs_f64()*1e6;
-    println!("ran in {:.2} us", stop);
-    for (t, j) in assigned_tracks.iter().enumerate() {
-        match j {
-            Assignment::Assigned(j) => println!("a({}) = {}", t+1, j+1),
-            Assignment::Unassigned => println!("a({}) = unassigned", t+1),
-        }
+    let problem = Problem::new(A);
+    // let start = Instant::now();
+    // let assigned_tracks = auction(&problem, auction_params::EPS, auction_params::MAX_ITERATIONS);
+    // let stop = start.elapsed().as_secs_f64()*1e6;
+    // println!("ran in {:.2} us", stop);
+    // match assigned_tracks {   
+    //     Ok(assigned_tracks) => {
+    //         for (t, j) in assigned_tracks.assignments() {
+    //             println!("a({}) = {}", t+1, j+1);
+    //         }
+    //     },
+    //     Err(e) => println!("Auction ended with error {}", e),
+    // };
+    let solutions = murtys(problem, 3);
+    if let Ok(s) = solutions {
+        println!("{:#?}", s);
     }
 }

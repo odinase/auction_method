@@ -94,8 +94,10 @@ def murtys(A, N):
         for t in range(n):
             # Step (a): Solve current problem by prohibiting first tracks original association. Will always be column 0
             P[i, 0] = -np.inf
+            print(f"Solving problem {P}")
             if not (~np.isfinite(P[:,0])).all():
                 S = auction(P)
+                print(f"Solution: {S}")
                 if valid_solution((S, P)):
                     # The solution Qs will in general miss the removed track associations, append them here before storing 
                     Qs = np.append(locked_targets, item_idxs[S]).astype(int)
@@ -108,11 +110,14 @@ def murtys(A, N):
                     pair = (Qs, Qp)
 
                     if not solution_problem_pair_exists(pair, L):
+                        print(f"adding pair\n{pair}")
                         L.append(pair)
 
 
             locked_targets.append(item_idxs[i])
+            print(f"\n\nlocked_targets: {locked_targets}\n\n")
             item_idxs = np.delete(item_idxs, i)
+            print(f"\n\nitem_idxs: {item_idxs}\n\n")
 
             P = np.delete(P[:,1:], i, axis=0) # Remove current target and its association
             if P.size == 0:
@@ -120,6 +125,7 @@ def murtys(A, N):
             # S = auction(P) # Rerun auction on reduced problem
             # i = S[0]
             i, = np.where(item_idxs==Ms[t+1])[0]
+            print(f"\n\ni is now {i}\n\n")
 
     return R
 
