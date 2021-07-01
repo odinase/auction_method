@@ -81,8 +81,6 @@ impl Problem {
 
     pub fn make_association_impossible(&self, measurement: usize, target: usize) {
         let mut A = self.0.borrow_mut();
-        println!("size = {:?}", A.dim());
-        println!("measurement(row) = {}\ntarget(column) = {}", measurement, target);
         A[(measurement, target)] = std::f64::NEG_INFINITY;
     }
 

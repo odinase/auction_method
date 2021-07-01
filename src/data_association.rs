@@ -78,28 +78,25 @@ pub fn murtys(original_problem: Problem, N: usize) -> Result<Vec<ProblemSolution
         if R.len() == N {
             break;
         }
-
+        
         let P = problem_solution_pair.problem();
+        let org_prob = P.clone();
         let mut i = problem_solution_pair.solution().first();
         
         let mut locked_targets: Vec<usize> = Vec::new();
         let mut item_idxs: Vec<_> = (0..P.num_measurements()).collect();
 
         for t in 0..n {
-            // println!("make ")
             P.make_association_impossible(i, 0);
-            println!("Solving problem: {:?}", P);
             if let Ok(solution) = auction(&P, auction_params::EPS, auction_params::MAX_ITERATIONS) {
                 let v = solution.into_vec();
-                println!("Solution: {:?}", v);
                 let convert_v = get_indexed_vec(item_idxs.as_slice(), v.as_slice());
-                println!("\n\nconverted : {:?}\n\n", convert_v);
                 let Qs = Solution::concatenate_assignments(&[
                 &locked_targets,
                 &convert_v
                 ]);
 
-                let Qp = original_problem.clone();
+                let Qp = org_prob.clone();
 
                 let org_i = item_idxs[i];
                 Qp.make_association_impossible(org_i, t);
@@ -107,21 +104,15 @@ pub fn murtys(original_problem: Problem, N: usize) -> Result<Vec<ProblemSolution
                 if let Ok(pair) = ProblemSolutionPair::new(Qs, Qp) {
                     // Here we should make sure it does not exist already?
                     if L.iter().all(|p| p != &pair) {
-                        println!("adding pair:\n{:?}", pair);
                         L.push(pair);
                     }
                 }
-            } else {
-                println!("invalid solution!");
             }
+
             locked_targets.push(item_idxs[i]);
-            println!("\n\nlocked_items: {:?}\n\n", locked_targets);
             item_idxs.remove(i);
-            println!("\n\nitem_idxs: {:?}\n\n", item_idxs);
             if P.num_targets() > 1{
-                println!("About to delete measurement {}, P is {:?}", i, P);
                 P.delete_assignment(i);
-                println!("P is now {:?}", P);
             } else {
                 break;
             }

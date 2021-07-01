@@ -94,10 +94,8 @@ def murtys(A, N):
         for t in range(n):
             # Step (a): Solve current problem by prohibiting first tracks original association. Will always be column 0
             P[i, 0] = -np.inf
-            print(f"Solving problem {P}")
             if not (~np.isfinite(P[:,0])).all():
                 S = auction(P)
-                print(f"Solution: {S}")
                 if valid_solution((S, P)):
                     # The solution Qs will in general miss the removed track associations, append them here before storing 
                     Qs = np.append(locked_targets, item_idxs[S]).astype(int)
@@ -110,14 +108,11 @@ def murtys(A, N):
                     pair = (Qs, Qp)
 
                     if not solution_problem_pair_exists(pair, L):
-                        print(f"adding pair\n{pair}")
                         L.append(pair)
 
 
             locked_targets.append(item_idxs[i])
-            print(f"\n\nlocked_targets: {locked_targets}\n\n")
             item_idxs = np.delete(item_idxs, i)
-            print(f"\n\nitem_idxs: {item_idxs}\n\n")
 
             P = np.delete(P[:,1:], i, axis=0) # Remove current target and its association
             if P.size == 0:
@@ -125,7 +120,6 @@ def murtys(A, N):
             # S = auction(P) # Rerun auction on reduced problem
             # i = S[0]
             i, = np.where(item_idxs==Ms[t+1])[0]
-            print(f"\n\ni is now {i}\n\n")
 
     return R
 
@@ -156,12 +150,7 @@ if __name__ == "__main__":
         [-np.inf, -np.inf,   -0.60]
     ])
 
-    import time
-    start = time.time()
     assignments = auction(A)
-    stop = time.time()
-    t_us = (stop-start)*1e6
-    print(f"ran in {t_us:.2f} us")
 
     for t, j in enumerate(assignments):
         print(f"a({t+1}) = {j+1}")
@@ -170,9 +159,14 @@ if __name__ == "__main__":
     s = compute_number_of_possible_assos(A)
     print(f"number of possible assos: {s}")
 
-    N = 3
+    N = 19
 
+    import time
+    start = time.time()
     R = murtys(A, N)
+    stop = time.time()
+    t_us = (stop-start)*1e6
+    print(f"ran in {t_us:.2f} us")
 
     rewards = np.empty(N)
 
@@ -186,9 +180,9 @@ if __name__ == "__main__":
 
     assert (np.abs(np.diff(rewards)) > 1e-6).all(), "some rewards are very similar"
 
-    plt.plot(np.arange(N)+1, rewards, 'o-')
-    plt.xticks(np.arange(N)+1)
-    plt.ylabel('Reward')
-    plt.xlabel('"Optimality" of solution')
-    plt.title(f"{s} possible hypothesises in total")
-    plt.show()
+    # plt.plot(np.arange(N)+1, rewards, 'o-')
+    # plt.xticks(np.arange(N)+1)
+    # plt.ylabel('Reward')
+    # plt.xlabel('"Optimality" of solution')
+    # plt.title(f"{s} possible hypothesises in total")
+    # plt.show()

@@ -29,8 +29,11 @@ fn main() {
     //         }
     //     },
     //     Err(e) => println!("Auction ended with error {}", e),
-    // };
-    let solutions = murtys(problem, 9);
+    // }
+    let start = Instant::now();
+    let solutions = murtys(problem, 19);
+    let stop = start.elapsed().as_secs_f64()*1e6;
+    println!("ran in {:.2} us", stop);
     if let Ok(s) = solutions {
         println!("{:#?}", s);
     }
