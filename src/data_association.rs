@@ -106,8 +106,10 @@ pub fn murtys(original_problem: Problem, N: usize) -> Result<Vec<ProblemSolution
 
                 if let Ok(pair) = ProblemSolutionPair::new(Qs, Qp) {
                     // Here we should make sure it does not exist already?
-                    println!("adding pair:\n{:?}", pair);
-                    L.push(pair);
+                    if L.iter().all(|p| p != &pair) {
+                        println!("adding pair:\n{:?}", pair);
+                        L.push(pair);
+                    }
                 }
             } else {
                 println!("invalid solution!");

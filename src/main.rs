@@ -30,7 +30,7 @@ fn main() {
     //     },
     //     Err(e) => println!("Auction ended with error {}", e),
     // };
-    let solutions = murtys(problem, 3);
+    let solutions = murtys(problem, 9);
     if let Ok(s) = solutions {
         println!("{:#?}", s);
     }
