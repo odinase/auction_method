@@ -25,7 +25,7 @@ impl Solution {
         Solution(assignments)
     }
 
-    pub fn concatenate_assignments(assignment_set: &[&Vec<usize>]) -> Self {
+    pub fn concatenate_assignments(assignment_set: &[&[usize]]) -> Self {
         let assignments = assignment_set.iter().copied().flatten().copied().collect();
         Solution(assignments)
     }

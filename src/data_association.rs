@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 use crate::argmax::argmax_iter;
 use crate::problem_solution_pair::{Solution, Problem, InvalidSolutionError};
-
+use ndarray::prelude::*;
 
 pub mod murtys;
 
@@ -26,10 +26,13 @@ impl std::cmp::PartialEq<usize> for Assignment  {
     }
 }
 
-pub fn auction(problem: &Problem, eps: f64, max_iterations: usize) -> Result<Solution, InvalidSolutionError> {
+pub fn auction<S>(problem: &ArrayBase<S, Ix2>, eps: f64, max_iterations: usize) -> Vec<Assignment> 
+where
+S: ndarray::RawData<Elem = f64> + ndarray::Data,
+{
     use Assignment::{Assigned, Unassigned};
     
-    let (m, n) = problem.num_measurements_targets();
+    let (m, n) = problem.dim();
     let mut unassigned_queue: VecDeque<_> = (0..n).collect();
     let mut assigned_tracks: Vec<Assignment> = vec![Unassigned; n];
     let mut prices = vec![0f64; m];
@@ -41,7 +44,7 @@ pub fn auction(problem: &Problem, eps: f64, max_iterations: usize) -> Result<Sol
             break;
         }
         let (i_star, val_max) = argmax_iter(
-            problem.rewards(t_star)
+            problem.column(t_star)
             .into_iter()
             .zip(prices.iter())
             .map(|(reward, &price)| reward - price),
@@ -55,12 +58,12 @@ pub fn auction(problem: &Problem, eps: f64, max_iterations: usize) -> Result<Sol
             unassigned_queue.push_back(prev_owner);
         }
         
-        let y = problem.reward(i_star, t_star) - val_max;
+        let y = problem[(i_star, t_star)] - val_max;
         prices[i_star] += y + eps;
         curr_iter += 1;
     }
-    // We return a Result<Solution> here as we might have terminated early and not assigned all items
-    Solution::try_from_unvalidated_assignments(assigned_tracks)
+    
+    assigned_tracks
 }
 
 
