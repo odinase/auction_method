@@ -1,6 +1,6 @@
 use super::Assignment;
 use crate::data_association::{auction, auction_params};
-use crate::problem_solution_pair::{self, InvalidSolutionError, Problem, Solution};
+use crate::problem_solution_pair::{self, InvalidSolutionError, Solution};
 
 use ndarray::prelude::*;
 use ordered_float::OrderedFloat;
@@ -8,18 +8,15 @@ use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 
 #[derive(Debug, Clone)]
-struct ProblemDuo {
-    duo: [Array2<f64>; 2],
-    i: usize,
+struct Problem {
+    problem: Array2<f64>,
     assignments_removed: i32,
 }
 
-impl ProblemDuo {
+impl Problem {
     fn new(problem: Array2<f64>) -> Self {
-        let d = problem.raw_dim();
-        ProblemDuo {
-            duo: [problem, Array2::zeros(d)],
-            i: 0,
+        Problem {
+            problem,    
             assignments_removed: 0,
         }
     }
@@ -30,30 +27,51 @@ impl ProblemDuo {
     }
 
     fn curr_view(&self) -> ArrayView2<'_, f64> {
-        self.duo[self.i].slice(s![..-self.assignments_removed, ..-self.assignments_removed])         
+        self.problem.slice(s![..-self.assignments_removed, ..-self.assignments_removed])         
     }
 
     fn curr_view_mut(&mut self) -> ArrayViewMut2<'_, f64> {
-        self.duo[self.i].slice_mut(s![..-self.assignments_removed, ..-self.assignments_removed])
+        self.problem.slice_mut(s![..-self.assignments_removed, ..-self.assignments_removed])
     }
 
-    fn next_view_mut(&mut self) -> ArrayViewMut2<'_, f64> {
-        self.duo[(self.i + 1) % 2].slice_mut(s![..-self.assignments_removed, ..-self.assignments_removed])
-    }
-
-    fn delete_assignment(&mut self, m: usize) {
-        let mut next_prob = self.next_view_mut();
-        let curr_prob = self.curr_view();
-        for (j, mut r) in next_prob
+    fn delete_assignment(&mut self, other: &Problem, m: usize) {
+        for (j, mut r) in self.problem
             .rows_mut()
             .into_iter()
             .enumerate()
         {
             let j_offset = !(j < m) as usize;
-            r.assign(&curr_prob.row(j + j_offset).slice(s![1..]));
+            r.assign(&other.problem.row(j + j_offset).slice(s![1..]));
         }
         self.assignments_removed += 1;
-        self.i = (self.i + 1) % 2;
+    }
+
+    fn into_array2(self) -> Array2<f64> {
+        self.problem
+    }
+}
+
+struct ProblemDuo {
+    problem1: Problem,
+    problem2: Problem,
+    curr_problem: usize
+}
+
+impl ProblemDuo {
+    fn new(problem1: Problem, problem2: Problem, curr_problem: usize) -> Self {
+        Self {
+            problem1,
+            problem2,
+            curr_problem
+        }
+    }
+
+    fn into_next_problem_pair(self) -> (Problem, Problem) {
+        match self.curr_problem {
+            0 => (self.problem2, self.problem1),
+            1 => (self.problem1, self.problem2),
+            _ => unreachable!()
+        }
     }
 }
 
@@ -250,6 +268,21 @@ fn validate_solution(
     Ok(())
 }
 
+// fn delete_assignment(, m: usize) {
+//     let mut next_prob = self.next_view_mut();
+//     let curr_prob = self.curr_view();
+//     for (j, mut r) in next_prob
+//         .rows_mut()
+//         .into_iter()
+//         .enumerate()
+//     {
+//         let j_offset = !(j < m) as usize;
+//         r.assign(&curr_prob.row(j + j_offset).slice(s![1..]));
+//     }
+//     self.assignments_removed += 1;
+//     self.i = (self.i + 1) % 2;
+// }
+
 fn murtys(
     original_problem: Array2<f64>,
     N: usize,
@@ -292,12 +325,15 @@ fn murtys(
 
         let org_prob = problem.clone(); // Store for later
         let mut i = solution[0];
-        let mut problem_duo = ProblemDuo::new(problem);
+        let mut problem_double = problem.clone();
+        let mut curr_problem = 0;
+
+        let problem_duo = ProblemDuo::new(Problem::new(org_prob), Problem::new(problem_double), curr_problem);
 
         for t in 0..n {
-            problem_duo.make_association_impossible(i, 0);
+            curr_problem[(i, 0)];
             let sub_solution = auction(
-                &problem_duo.curr_view(),
+                &curr_problem,
                 auction_params::EPS,
                 auction_params::MAX_ITERATIONS,
             );
@@ -319,7 +355,7 @@ fn murtys(
 
             locked_targets.push(item_idxs[i]);
             item_idxs.remove(i);
-            if problem_duo.curr_view().shape()[1] > 1 {
+            if curr_problem.shape()[1] > 1 {
                 problem_duo.delete_assignment(i);
             } else {
                 break;
