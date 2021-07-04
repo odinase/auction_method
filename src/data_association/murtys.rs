@@ -22,26 +22,35 @@ impl Problem {
     }
 
     pub fn make_association_impossible(&mut self, measurement: usize, target: usize) {
-        let mut prob = self.curr_view_mut();
+        let mut prob = self.view_mut();
         prob[(measurement, target)] = std::f64::NEG_INFINITY;
     }
 
-    fn curr_view(&self) -> ArrayView2<'_, f64> {
-        self.problem.slice(s![..-self.assignments_removed, ..-self.assignments_removed])         
+    fn view(&self) -> ArrayView2<'_, f64> {
+        if self.assignments_removed > 0 {
+            self.problem.slice(s![..-self.assignments_removed, ..-self.assignments_removed])
+        } else {
+            self.problem.view()
+        }
     }
 
-    fn curr_view_mut(&mut self) -> ArrayViewMut2<'_, f64> {
-        self.problem.slice_mut(s![..-self.assignments_removed, ..-self.assignments_removed])
-    }
+    fn view_mut(&mut self) -> ArrayViewMut2<'_, f64> {
+        if self.assignments_removed > 0 {
+            self.problem.slice_mut(s![..-self.assignments_removed, ..-self.assignments_removed])
+        } else {
+            self.problem.view_mut()
+        }    }
 
     fn delete_assignment(&mut self, other: &Problem, m: usize) {
         for (j, mut r) in self.problem
+        .view_mut()
+        .slice_mut(s![..-1, ..-1])
             .rows_mut()
             .into_iter()
             .enumerate()
         {
             let j_offset = !(j < m) as usize;
-            r.assign(&other.problem.row(j + j_offset).slice(s![1..]));
+            r.assign(&other.problem.view().row(j + j_offset).slice(s![1..]));
         }
         self.assignments_removed += 1;
     }
@@ -62,7 +71,7 @@ impl ProblemDuo {
         Self {
             problem1,
             problem2,
-            curr_problem
+            curr_problem: curr_problem % 2
         }
     }
 
@@ -76,7 +85,7 @@ impl ProblemDuo {
 }
 
 #[derive(Debug, Clone)]
-struct ProblemSolutionPair {
+pub struct ProblemSolutionPair {
     problem: Array2<f64>,
     solution: Vec<usize>,
     reward: OrderedFloat<f64>,
@@ -136,122 +145,122 @@ impl ProblemSolutionPair {
     }
 }
 
-struct Murtys {
-    item_idxs: Vec<usize>,
-    solution_holder: Vec<usize>,
-}
+// struct Murtys {
+//     item_idxs: Vec<usize>,
+//     solution_holder: Vec<usize>,
+// }
 
-impl Murtys {
-    fn new(m: usize, n: usize) -> Self {
-        Murtys {
-            item_idxs: (0..m).collect(),
-            solution_holder: vec![0; n],
-        }
-    }
+// impl Murtys {
+//     fn new(m: usize, n: usize) -> Self {
+//         Murtys {
+//             item_idxs: (0..m).collect(),
+//             solution_holder: vec![0; n],
+//         }
+//     }
 
-    fn validate_solution(
-        unvalidated_solution: &[Assignment],
-        solution_holder: &mut [usize],
-    ) -> Result<(), InvalidSolutionError> {
-        for (unvalidated_assignement, assignment_slot) in
-            unvalidated_solution.iter().zip(solution_holder.iter_mut())
-        {
-            *assignment_slot = match unvalidated_assignement {
-                Assignment::Assigned(i) => *i,
-                Assignment::Unassigned => return Err(InvalidSolutionError::UnassignedTarget),
-            };
-        }
-        Ok(())
-    }
+//     fn validate_solution(
+//         unvalidated_solution: &[Assignment],
+//         solution_holder: &mut [usize],
+//     ) -> Result<(), InvalidSolutionError> {
+//         for (unvalidated_assignement, assignment_slot) in
+//             unvalidated_solution.iter().zip(solution_holder.iter_mut())
+//         {
+//             *assignment_slot = match unvalidated_assignement {
+//                 Assignment::Assigned(i) => *i,
+//                 Assignment::Unassigned => return Err(InvalidSolutionError::UnassignedTarget),
+//             };
+//         }
+//         Ok(())
+//     }
 
-    fn run(
-        mut self,
-        original_problem: Array2<f64>,
-        N: usize,
-    ) -> Result<Vec<ProblemSolutionPair>, InvalidSolutionError> {
-        let (m, n) = original_problem.dim();
+//     fn run(
+//         mut self,
+//         original_problem: Array2<f64>,
+//         N: usize,
+//     ) -> Result<Vec<ProblemSolutionPair>, InvalidSolutionError> {
+//         let (m, n) = original_problem.dim();
 
-        let original_solution = auction(
-            &original_problem,
-            auction_params::EPS,
-            auction_params::MAX_ITERATIONS,
-        );
-        let mut solution_holder = vec![0; n];
+//         let original_solution = auction(
+//             &original_problem,
+//             auction_params::EPS,
+//             auction_params::MAX_ITERATIONS,
+//         );
+//         let mut solution_holder = vec![0; n];
 
-        Self::validate_solution(&original_solution, &mut solution_holder)?;
+//         Self::validate_solution(&original_solution, &mut solution_holder)?;
 
-        let problem_solution_pair =
-            ProblemSolutionPair::new(solution_holder.clone(), original_problem.clone())?;
+//         let problem_solution_pair =
+//             ProblemSolutionPair::new(solution_holder.clone(), original_problem.clone())?;
 
-        let mut L = BinaryHeap::new();
-        L.push(problem_solution_pair);
+//         let mut L = BinaryHeap::new();
+//         L.push(problem_solution_pair);
 
-        let mut best_assignments = Vec::with_capacity(N);
-        let mut locked_targets: Vec<usize> = Vec::with_capacity(n);
-        let mut item_idxs: Vec<_> = Vec::with_capacity(m);
+//         let mut best_assignments = Vec::with_capacity(N);
+//         let mut locked_targets: Vec<usize> = Vec::with_capacity(n);
+//         let mut item_idxs: Vec<_> = Vec::with_capacity(m);
 
-        while let Some(pair) = L.pop() {
-            best_assignments.push(pair.clone());
+//         while let Some(pair) = L.pop() {
+//             best_assignments.push(pair.clone());
 
-            // Clear lists for new iteration
-            locked_targets.clear();
-            item_idxs.clear();
-            for k in 0..m {
-                item_idxs.push(k)
-            }
+//             // Clear lists for new iteration
+//             locked_targets.clear();
+//             item_idxs.clear();
+//             for k in 0..m {
+//                 item_idxs.push(k)
+//             }
 
-            let (solution, problem) = pair.into_tuple();
+//             let (solution, problem) = pair.into_tuple();
 
-            if best_assignments.len() == N {
-                break;
-            }
+//             if best_assignments.len() == N {
+//                 break;
+//             }
 
-            let org_prob = problem.clone(); // Store for later
-            let mut i = solution[0];
+//             let org_prob = problem.clone(); // Store for later
+//             let mut i = solution[0];
 
-            let mut problem_duo = ProblemDuo::new(problem);
+//             let mut problem_duo = ProblemDuo::new(problem);
 
-            for t in 0..n {
-                problem_duo.make_association_impossible(i, 0);
-                let sub_solution = auction(
-                    &problem_duo.curr_view(),
-                    auction_params::EPS,
-                    auction_params::MAX_ITERATIONS,
-                );
-                if let Ok(()) = Self::validate_solution(&sub_solution, &mut solution_holder) {
-                    let sol = get_indexed_vec(&item_idxs, &solution_holder);
-                    let Qs = locked_targets.iter().chain(sol.iter()).copied().collect();
-                    let Qp = org_prob.clone();
+//             for t in 0..n {
+//                 problem_duo.make_association_impossible(i, 0);
+//                 let sub_solution = auction(
+//                     &problem_duo.curr_view(),
+//                     auction_params::EPS,
+//                     auction_params::MAX_ITERATIONS,
+//                 );
+//                 if let Ok(()) = Self::validate_solution(&sub_solution, &mut solution_holder) {
+//                     let sol = get_indexed_vec(&item_idxs, &solution_holder);
+//                     let Qs = locked_targets.iter().chain(sol.iter()).copied().collect();
+//                     let Qp = org_prob.clone();
 
-                    let org_i = item_idxs[i];
-                    Qp[(org_i, t)];
+//                     let org_i = item_idxs[i];
+//                     Qp[(org_i, t)];
 
-                    if let Ok(pair) = ProblemSolutionPair::new(Qs, Qp) {
-                        // Here we should make sure it does not exist already?
-                        if L.iter().all(|p| p != &pair) {
-                            L.push(pair);
-                        }
-                    }
-                }
+//                     if let Ok(pair) = ProblemSolutionPair::new(Qs, Qp) {
+//                         // Here we should make sure it does not exist already?
+//                         if L.iter().all(|p| p != &pair) {
+//                             L.push(pair);
+//                         }
+//                     }
+//                 }
 
-                locked_targets.push(item_idxs[i]);
-                item_idxs.remove(i);
-                if problem_duo.curr_view().shape()[1] > 1 {
-                    problem_duo.delete_assignment(i);
-                } else {
-                    break;
-                }
+//                 locked_targets.push(item_idxs[i]);
+//                 item_idxs.remove(i);
+//                 if problem_duo.curr_view().shape()[1] > 1 {
+//                     problem_duo.delete_assignment(i);
+//                 } else {
+//                     break;
+//                 }
 
-                i = item_idxs
-                    .iter()
-                    .position(|&i| i == solution[t + 1])
-                    .expect("Cant find index??");
-            }
-        }
+//                 i = item_idxs
+//                     .iter()
+//                     .position(|&i| i == solution[t + 1])
+//                     .expect("Cant find index??");
+//             }
+//         }
 
-        Ok(best_assignments)
-    }
-}
+//         Ok(best_assignments)
+//     }
+// }
 
 fn validate_solution(
     unvalidated_solution: &[Assignment],
@@ -283,7 +292,7 @@ fn validate_solution(
 //     self.i = (self.i + 1) % 2;
 // }
 
-fn murtys(
+pub fn murtys(
     original_problem: Array2<f64>,
     N: usize,
 ) -> Result<Vec<ProblemSolutionPair>, InvalidSolutionError> {
@@ -325,25 +334,26 @@ fn murtys(
 
         let org_prob = problem.clone(); // Store for later
         let mut i = solution[0];
-        let mut problem_double = problem.clone();
+        let problem_double = problem.clone();
         let mut curr_problem = 0;
 
-        let problem_duo = ProblemDuo::new(Problem::new(org_prob), Problem::new(problem_double), curr_problem);
-
+        let mut problem_duo = ProblemDuo::new(Problem::new(problem), Problem::new(problem_double), curr_problem);
+        let mut reductions = n;
         for t in 0..n {
-            curr_problem[(i, 0)];
+            let (mut problem2, mut problem1) = problem_duo.into_next_problem_pair();
+            problem1.make_association_impossible(i, 0);
             let sub_solution = auction(
-                &curr_problem,
+                &problem1.view(),
                 auction_params::EPS,
                 auction_params::MAX_ITERATIONS,
             );
             if let Ok(()) = validate_solution(&sub_solution, &mut solution_holder) {
-                let sol = get_indexed_vec(&item_idxs, &solution_holder);
+                let sol = get_indexed_vec(&item_idxs, &solution_holder[..reductions]);
                 let Qs = locked_targets.iter().chain(sol.iter()).copied().collect();
-                let Qp = org_prob.clone();
+                let mut Qp = org_prob.clone();
 
                 let org_i = item_idxs[i];
-                Qp[(org_i, t)];
+                Qp[(org_i, t)] = std::f64::NEG_INFINITY;
 
                 if let Ok(pair) = ProblemSolutionPair::new(Qs, Qp) {
                     // Here we should make sure it does not exist already?
@@ -355,16 +365,22 @@ fn murtys(
 
             locked_targets.push(item_idxs[i]);
             item_idxs.remove(i);
-            if curr_problem.shape()[1] > 1 {
-                problem_duo.delete_assignment(i);
+            if problem1.view().shape()[1] > 1 {
+                problem2.delete_assignment(&problem1, i);
             } else {
                 break;
             }
 
-            i = item_idxs
+            if t < n - 1 {
+                i = item_idxs
                 .iter()
                 .position(|&i| i == solution[t + 1])
                 .expect("Cant find index??");
+            }
+
+            curr_problem += 1;
+            problem_duo = ProblemDuo::new(problem1, problem2, curr_problem);
+            reductions -= 1;
         }
     }
 

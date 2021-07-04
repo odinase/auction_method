@@ -17,7 +17,7 @@ fn main() {
         [-inf, -0.52, -inf],
         [-inf, -inf, -0.60]
     ];
-    let problem = Problem::new(A);
+    // let problem = Problem::new(A);
     // let start = Instant::now();
     // let assigned_tracks = auction(&problem, auction_params::EPS, auction_params::MAX_ITERATIONS);
     // let stop = start.elapsed().as_secs_f64()*1e6;
@@ -31,7 +31,7 @@ fn main() {
     //     Err(e) => println!("Auction ended with error {}", e),
     // }
     let start = Instant::now();
-    let solutions = murtys(problem, 19);
+    let solutions = murtys(A, 19);
     let stop = start.elapsed().as_secs_f64()*1e6;
     println!("ran in {:.2} us", stop);
     if let Ok(s) = solutions {
